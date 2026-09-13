@@ -1,173 +1,68 @@
 # C++ Latency Lab
 
-<p align="center">
-  <b>Small C++ experiments. Real measurements. Systems-level reasoning.</b>
-</p>
+Small C++ experiments for learning how data layout, memory access and concurrency affect real program performance.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/C%2B%2B-Performance-00599C?style=flat-square" />
-  <img src="https://img.shields.io/badge/Compiler-GCC-lightgrey?style=flat-square" />
-  <img src="https://img.shields.io/badge/Status-Active-success?style=flat-square" />
-</p>
-
----
-
-## About
-
-A compact benchmarking lab exploring how C++ design choices affect **latency, memory behaviour, cache locality, allocation, and concurrency**.
-
-The aim is to move beyond:
-
-```text
-knowing C++ syntax
-```
-
-towards:
-
-```text
-understanding what the machine is actually doing
-```
-
----
+The goal is not to collect impressive benchmark numbers. It is to form a hypothesis, measure one variable carefully, and understand why the result happened.
 
 ## 01 — Vector vs List
 
-**Workload**
+The first experiment compares traversal of 1,000,000 integers stored in `std::vector` and `std::list`.
 
-```text
-1,000,000 integers
-same values
-same summation
-same compiler
-same optimisation
-```
+Both traversals are O(n), but the containers have very different memory layouts. `std::vector` stores elements contiguously, while `std::list` follows pointers between separately allocated nodes. That makes this a useful first look at cache locality and pointer chasing.
 
-### Initial result
+### Historical baseline
 
-| Container     |     Iteration |
-| ------------- | ------------: |
-| `std::vector` |    **629 µs** |
-| `std::list`   | **10,312 µs** |
+The first version of the experiment recorded one run:
 
-```text
-std::vector   █ 629 µs
+| Container | Traversal |
+| --- | ---: |
+| `std::vector` | 629 us |
+| `std::list` | 10,312 us |
 
-std::list     ████████████████ 10,312 µs
-```
+That single measurement suggested a large difference, but one sample is not enough to make a strong performance claim. Scheduler activity, CPU frequency changes and other system noise can move an individual timing substantially.
 
-> In this run, `std::list` took roughly **16× longer** to iterate.
+### Current method
 
-This is an initial measurement only. Repeated runs and statistical analysis will be added next.
+The benchmark now:
 
----
+- performs 5 warm-up traversals
+- records 50 measured runs for each container
+- alternates which container is measured first
+- reports min, median, mean and max traversal time
+- prints a checksum so the measured work has an observable result
+- uses `std::chrono::steady_clock`
 
-## Why?
+The warm-up means this is primarily a steady-state traversal test. It should not be presented as a cold-cache benchmark.
 
-### `std::vector`
+Results should be recorded from a real run on the machine being documented rather than copied from another environment.
 
-```text
-[0][1][2][3][4][5][6][7]
-```
+## Planned experiments
 
-Elements are stored contiguously.
+| # | Experiment | Main question |
+| --- | --- | --- |
+| 01 | Vector vs List | How does contiguous storage affect traversal? |
+| 02 | Map vs Unordered Map | How do tree traversal and hashing affect lookup latency? |
+| 03 | Sequential vs Random Access | How much does memory locality matter? |
+| 04 | Cache-Line Stride | What happens as memory access becomes more sparse? |
+| 05 | AoS vs SoA | How does data layout affect useful cache traffic? |
+| 06 | False Sharing | How can independent threads interfere through cache coherence? |
+| 07 | Branch Prediction | When do unpredictable branches become expensive? |
+| 08 | SIMD / Vectorisation | When can the compiler process multiple values per instruction? |
+| 09 | Thread Scaling | When does adding threads stop improving throughput? |
 
-This generally gives the CPU:
-
-* better cache locality
-* predictable memory access
-* effective hardware prefetching
-
-### `std::list`
-
-```text
-[0] ─────► [1] ─────► [2] ─────► [3]
-```
-
-Each node may live somewhere else in memory.
-
-Traversal requires repeated pointer following — commonly called **pointer chasing**.
-
-Both are:
-
-```text
-O(n)
-```
-
-Yet their real-world latency can be very different.
-
----
-
-## Experiment flow
-
-```mermaid
-flowchart LR
-    A[Design] --> B[Compile]
-    B --> C[Benchmark]
-    C --> D[Measure]
-    D --> E[Understand]
-```
-
----
-
-## Lab
-
-```text
-cpp-latency-lab
-│
-└── experiments
-    │
-    ├── 01-vector-vs-list
-    ├── 02-map-vs-unordered-map
-    ├── 03-copy-vs-reference
-    ├── 04-allocation
-    ├── 05-threading
-    └── 06-compiler-optimisation
-```
-
----
-
-## Roadmap
-
-| Experiment                 | Focus            | Status    |
-| -------------------------- | ---------------- | --------- |
-| `01` Vector vs List        | Cache locality   | ● Active  |
-| `02` Map vs Unordered Map  | Lookup latency   | ○ Planned |
-| `03` Copy vs Reference     | Data movement    | ○ Planned |
-| `04` Allocation            | Memory overhead  | ○ Planned |
-| `05` Threading             | Concurrency cost | ○ Planned |
-| `06` Compiler Optimisation | Generated code   | ○ Planned |
-
----
-
-## Next
-
-```text
-single measurement
-        ↓
-100 benchmark runs
-        ↓
-min / max / mean / median
-        ↓
-compiler comparison
-        ↓
-assembly inspection
-```
-
----
+The experiments will be added progressively. A smaller set of well-understood benchmarks is more useful than many shallow examples.
 
 ## Build
 
+From the repository root:
+
 ```bash
-g++ -O2 -Wall -Wextra main.cpp -o latency.exe
-./latency.exe
+g++ -O2 -Wall -Wextra -Wpedantic experiments/main.cpp -o latency
+./latency
 ```
 
----
+The exact compiler version, optimisation flags and machine used for published results should be recorded alongside those results.
 
-<p align="center">
-  <b>Built to understand performance — not just measure it.</b>
-</p>
+## Next
 
-<p align="center">
-  <a href="https://github.com/musaddiq2021">@musaddiq2021</a>
-</p>
+Run Experiment 01 repeatedly on the target machine and record a reproducible baseline. Once the methodology and results are stable, move to Experiment 02 rather than adding several experiments at once.
