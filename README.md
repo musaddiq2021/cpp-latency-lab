@@ -103,6 +103,26 @@ Yet their real-world latency can be very different.
 
 ---
 
+## 02 — Map vs Unordered Map
+
+Experiment 02 measures **successful random lookup latency** for `std::map` and `std::unordered_map` as the data set grows from 1,000 to 1,000,000 elements.
+
+The benchmark uses pre-generated lookup keys, warm-up passes, 20 measured runs, alternating measurement order, median nanoseconds per lookup, and an observable checksum.
+
+```text
+std::map
+key -> tree comparison -> pointer -> comparison -> pointer -> value
+
+std::unordered_map
+key -> hash -> bucket -> value
+```
+
+The goal is to connect algorithmic complexity with the cost of pointer chasing, hashing and memory locality rather than simply state that one container is "faster".
+
+See [`experiments/02-map-vs-unordered-map`](experiments/02-map-vs-unordered-map) for the benchmark and methodology.
+
+---
+
 ## Experiment flow
 
 ```mermaid
@@ -124,50 +144,61 @@ cpp-latency-lab
     │
     ├── 01-vector-vs-list
     ├── 02-map-vs-unordered-map
-    ├── 03-copy-vs-reference
-    ├── 04-allocation
-    ├── 05-threading
-    └── 06-compiler-optimisation
+    ├── 03-sequential-vs-random
+    ├── 04-cache-line-stride
+    ├── 05-aos-vs-soa
+    ├── 06-false-sharing
+    ├── 07-branch-prediction
+    ├── 08-simd-vectorization
+    └── 09-thread-scaling
 ```
 
 ---
 
 ## Roadmap
 
-| Experiment                 | Focus            | Status    |
-| -------------------------- | ---------------- | --------- |
-| `01` Vector vs List        | Cache locality   | ● Active  |
-| `02` Map vs Unordered Map  | Lookup latency   | ○ Planned |
-| `03` Copy vs Reference     | Data movement    | ○ Planned |
-| `04` Allocation            | Memory overhead  | ○ Planned |
-| `05` Threading             | Concurrency cost | ○ Planned |
-| `06` Compiler Optimisation | Generated code   | ○ Planned |
+| Experiment                    | Focus                         | Status        |
+| ----------------------------- | ----------------------------- | ------------- |
+| `01` Vector vs List           | Cache locality                | ● Implemented |
+| `02` Map vs Unordered Map     | Lookup latency                | ● Implemented |
+| `03` Sequential vs Random     | Memory locality               | ○ Planned     |
+| `04` Cache-Line Stride        | Cache lines / prefetching      | ○ Planned     |
+| `05` AoS vs SoA               | Data layout                    | ○ Planned     |
+| `06` False Sharing            | Cache coherence                | ○ Planned     |
+| `07` Branch Prediction        | Predictability / control flow  | ○ Planned     |
+| `08` SIMD Vectorization       | Compiler / data parallelism    | ○ Planned     |
+| `09` Thread Scaling           | Parallel scaling               | ○ Planned     |
+
+---
+
+## Build
+
+Experiment 01:
+
+```bash
+g++ -O2 -Wall -Wextra -Wpedantic experiments/main.cpp -o latency
+./latency
+```
+
+Experiment 02:
+
+```bash
+g++ -std=c++20 -O2 -Wall -Wextra -Wpedantic experiments/02-map-vs-unordered-map/main.cpp -o map_lookup
+./map_lookup
+```
 
 ---
 
 ## Next
 
 ```text
-repeated measurements
+run Experiment 02 on the target machine
         ↓
-min / max / mean / median
+record median lookup latency
         ↓
-record benchmark environment
+compare scaling across container sizes
         ↓
-compiler comparison
-        ↓
-assembly inspection
-```
-
----
-
-## Build
-
-From the repository root:
-
-```bash
-g++ -O2 -Wall -Wextra -Wpedantic experiments/main.cpp -o latency
-./latency
+move to sequential vs random memory access
 ```
 
 ---
